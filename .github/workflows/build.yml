@@ -1,0 +1,37 @@
+name: Construir ScannerDK APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'ScannerDK_Android_prototipo.zip'
+      - '.github/workflows/build.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Preparar Android
+        uses: android-actions/setup-android@v3
+
+      - name: Extraer proyecto
+        run: |
+          unzip ScannerDK_Android_prototipo.zip -d proyecto
+          cd proyecto
+          gradle assembleDebug
+
+      - name: Guardar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScannerDK-APK
+          path: proyecto/app/build/outputs/apk/debug/*.apk
