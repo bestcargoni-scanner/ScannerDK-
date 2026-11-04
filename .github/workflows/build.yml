@@ -23,6 +23,9 @@ jobs:
 
       - name: Preparar Android
         uses: android-actions/setup-android@v3
+        with: 
+          accept-android-sdk-licenses: true
+        
 
       - name: Extraer proyecto
         run: |
