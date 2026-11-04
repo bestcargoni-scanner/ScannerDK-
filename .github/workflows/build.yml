@@ -1,7 +1,4 @@
 
-name: Construir ScannerDK APK
-
-on:
   workflow_dispatch:
   push:
     paths:
