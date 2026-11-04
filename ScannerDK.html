@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
+<title>ScannerDK · Volatility 25</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--card:#151f31;--card2:#0e1727;--line:#26344b;--text:#f3f6fc;--muted:#9baac1;--blue:#78a8ff;--green:#35d99a;--red:#ff687b;--amber:#ffc568}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:850px;margin:auto;padding:16px 13px 36px}.eyebrow{font-size:11px;letter-spacing:.16em;color:var(--muted)}
+h1{font-size:clamp(25px,6vw,34px);margin:4px 0}.sub{color:var(--muted);margin:0 0 16px;line-height:1.45}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.pill{border:1px solid var(--line);border-radius:999px;padding:7px 11px;color:var(--muted);font-size:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;margin:13px 0;box-shadow:0 8px 24px #0002}
+.status{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:13px;margin:7px 0 12px}.dot{width:9px;height:9px;border-radius:50%;background:var(--amber);display:inline-block}
+.price{font-size:clamp(35px,10vw,54px);font-weight:850;letter-spacing:-.04em}.label{font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:12px}.metric{background:var(--card2);border:1px solid var(--line);border-radius:13px;padding:12px;min-width:0}.value{font-size:20px;font-weight:750;margin-top:4px;overflow-wrap:anywhere}
+.signal{font-size:clamp(24px,6vw,32px);font-weight:900;margin:12px 0 6px;line-height:1.15}.green{color:var(--green)}.red{color:var(--red)}.amber{color:var(--amber)}.blue{color:var(--blue)}.desc{color:#b1bed2;line-height:1.5;margin:0}
+.buttons{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}button{border:0;border-radius:12px;padding:12px 14px;font-size:14px;font-weight:750;background:#263650;color:var(--text);cursor:pointer}button.primary{background:var(--blue);color:#071326}button:disabled{opacity:.45;cursor:not-allowed}
+.checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:13px}.check{background:var(--card2);border:1px solid var(--line);border-radius:11px;padding:10px;font-size:13px}.check b{display:block;margin-bottom:3px}.pass{color:var(--green)}.fail{color:var(--amber)}
+.history{display:grid;gap:8px;margin-top:12px}.event{border-left:3px solid var(--blue);background:var(--card2);padding:10px 12px;border-radius:8px;font-size:13px}.event strong{display:block;margin-bottom:4px}
+.small{font-size:12px;color:var(--muted);line-height:1.5}.foot{font-size:12px;color:var(--muted);line-height:1.6}
+@media(min-width:600px){.grid{grid-template-columns:repeat(4,minmax(0,1fr))}.checks{grid-template-columns:repeat(3,minmax(0,1fr))}}
+</style>
+</head>
+<body><main>
+<div class="eyebrow">SCANNER DE OPORTUNIDADES · SOLO LECTURA</div>
+<div class="top"><div><h1>ScannerDK · Volatility 25</h1><p class="sub">Busca oportunidades confirmadas con M5 + M15. No ejecuta operaciones.</p></div><span class="pill">DERIV · R_25</span></div>
+
+<section class="card">
+ <div class="status"><span id="dot" class="dot"></span><span id="connection">Conectando a datos públicos de Deriv…</span></div>
+ <div class="label">Precio en vivo</div><div><span id="price" class="price">—</span></div>
+<div class="grid">
+  <div class="metric"><div class="label">Estado del scanner</div><div id="scanState" class="value amber">INICIANDO</div></div>
+  <div class="metric"><div class="label">Último análisis</div><div id="lastScan" class="value">—</div></div>
+  <div class="metric"><div class="label">M5 / vela cerrada</div><div id="m5time" class="value">—</div></div>
+  <div class="metric"><div class="label">M15 / vela cerrada</div><div id="m15time" class="value">—</div></div>
+ </div>
+ <div class="buttons">
+  <button class="primary" id="toggle">Pausar scanner</button><button id="reconnect">Reconectar</button><button id="sound">Activar sonido</button><button id="clear">Limpiar señales</button>
+ </div>
+ <p class="small">El scanner trabaja únicamente con Volatility 25 (R_25), datos públicos y modo lectura. No necesita token de Deriv. Para conexión fiable, publícalo en Netlify (HTTPS); no lo abras desde content://downloads.</p>
+</section>
+
+<section class="card">
+ <div class="top"><h2 style="margin:0;font-size:20px">Panel de oportunidad</h2><span id="badge" class="pill">ESPERANDO</span></div>
+ <div id="headline" class="signal amber">Esperando velas M5 y M15</div>
+ <p id="reason" class="desc">Se necesita historial suficiente y conexión estable antes de evaluar condiciones.</p>
+ <p id="prealert" class="small"></p>
+ <div id="checks" class="checks"></div>
+ <div class="grid">
+  <div class="metric"><div class="label">Tendencia M5</div><div id="trend5" class="value">—</div></div>
+  <div class="metric"><div class="label">Tendencia M15</div><div id="trend15" class="value">—</div></div>
+  <div class="metric"><div class="label">RSI M5</div><div id="rsi5" class="value">—</div></div>
+  <div class="metric"><div class="label">RSI M15</div><div id="rsi15" class="value">—</div></div>
+ </div>
+ <div class="grid" style="margin-top:12px">
+  <div class="metric"><div class="label">Punto de entrada (referencial)</div><div id="entryPrice" class="value blue">—</div></div>
+  <div class="metric"><div class="label">Take profit (TP)</div><div id="takeProfit" class="value green">—</div></div>
+  <div class="metric"><div class="label">Stop loss (SL)</div><div id="stopLoss" class="value red">—</div></div>
+  <div class="metric"><div class="label">Distancia estimada</div><div id="riskDistance" class="value">—</div></div>
+ </div>
+ <p class="small">Niveles técnicos simulados solo cuando hay señal confirmada: entrada = cierre de vela M5; SL = 1.5 × ATR; TP = 2 × ATR (relación teórica 1:1.33). No son órdenes ni garantizan resultados. Confirma precio y niveles en Deriv antes de cualquier decisión.</p>
+</section>
+
+<section class="card">
+ <div class="top"><h2 style="margin:0;font-size:20px">Evaluación de señales</h2><span class="pill">Seguimiento · 3 velas M5</span></div>
+ <div class="grid">
+  <div class="metric"><div class="label">Evaluadas</div><div id="evaluated" class="value">0</div></div>
+  <div class="metric"><div class="label">Favorables</div><div id="favorable" class="value green">0</div></div>
+  <div class="metric"><div class="label">Desfavorables</div><div id="unfavorable" class="value red">0</div></div>
+  <div class="metric"><div class="label">Movimiento favorable</div><div id="hitRate" class="value">—</div></div>
+ </div>
+ <p class="small">Evaluación aproximada durante las 3 velas M5 siguientes: comprueba si TP o SL se toca primero usando máximos y mínimos. Si TP y SL aparecen dentro de una misma vela, el resultado se marca ambiguo. No representa rentabilidad real ni incluye spread/deslizamiento.</p>
+</section>
+
+<section class="card">
+ <div class="top"><h2 style="margin:0;font-size:20px">Historial de señales confirmadas</h2><span class="pill" id="count">0 señales</span></div>
+ <div id="history" class="history"><p class="small">Aún no hay señales. El scanner no inventa oportunidades.</p></div>
+</section>
+
+<section class="card">
+ <h2 style="font-size:18px;margin:0 0 8px">Reglas de confirmación</h2>
+ <p class="foot">BUY/SELL solo se emite al detectar una nueva vela M5 cerrada y cuando M5 y M15 coinciden: EMA 9 > EMA 21 > EMA 50 (alcista) o EMA 9 < EMA 21 < EMA 50 (bajista), cierre respecto a EMA 9, RSI en rango, momentum y vela de dirección. Las prealertas solo indican alineación de tendencia y requieren confirmación adicional. Se muestran prealertas de tendencia por separado; no equivalen a señales. La coincidencia de filtros no equivale a probabilidad de éxito.</p>
+ <p class="foot">Referencia de riesgo configurada: máximo orientativo 1% del balance. El scanner muestra niveles técnicos referenciales de entrada, SL y TP, pero no calcula tamaño de posición ni ejecuta órdenes. Verifica siempre el gráfico oficial y prueba en demo.</p>
+ <p id="error" class="small"></p>
+</section>
+</main>
+<script>
+(()=>{'use strict';
+const SYMBOL='R_25',APP_ID=1089,URLS=['wss://api.derivws.com/trading/v1/options/ws/public',`wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`,`wss://ws.binaryws.com/websockets/v3?app_id=${APP_ID}`];
+let ws=null,retry=null,pingTimer=null,connectTimer=null,urlIndex=0,candles5=[],candles15=[],lastTick=null;
+const STORE_KEY='v25_scanner_v2';
+let running=true,soundOn=false,signalHistory=[],lastProcessedM5=null,lastSignalKey='',evalStats={favorable:0,unfavorable:0,neutral:0};
+
+const $=id=>document.getElementById(id),fmt=n=>Number.isFinite(n)?n.toFixed(2):'—';
+function saveState(){
+ try{localStorage.setItem(STORE_KEY,JSON.stringify({signalHistory,evalStats,lastProcessedM5,lastSignalKey}));}catch(e){}
+}
+
+function renderHistory(){
+ $('count').textContent=signalHistory.length+' señales';
+ $('history').innerHTML=signalHistory.length?signalHistory.map(s=>`<div class="event" style="border-color:${s.dir==='BUY'?'var(--green)':'var(--red)'}"><strong class="${s.dir==='BUY'?'green':'red'}">SEÑAL ${s.dir} · Entrada ${fmt(s.entry??s.price)}</strong><span class="small">TP: ${s.tp!=null?fmt(s.tp):'—'} · SL: ${s.sl!=null?fmt(s.sl):'—'}<br>Vela: ${new Date(s.epoch*1000).toLocaleString('es-NI')} · Detectada: ${s.at}${s.result?` · Resultado: ${s.result}${s.firstHit?` · ${s.firstHit}`:''} (${s.delta>0?'+':''}${fmt(s.delta)})`:' · Evaluación pendiente'}</span></div>`).join(''):'<p class="small">Aún no hay señales. El scanner no inventa oportunidades.</p>';
+ $('evaluated').textContent=evalStats.favorable+evalStats.unfavorable+evalStats.neutral;
+ $('favorable').textContent=evalStats.favorable;$('unfavorable').textContent=evalStats.unfavorable;
+ const denom=evalStats.favorable+evalStats.unfavorable;$('hitRate').textContent=denom?`${(evalStats.favorable/denom*100).toFixed(1)}%`:'—';
+}
+
+function status(t,ok=false){$('connection').textContent=t;$('dot').style.background=ok?'var(--green)':'var(--amber)'}
+function send(o){if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(o))}
+function keepAlive(){clearInterval(pingTimer);pingTimer=setInterval(()=>send({ping:1}),30000)}
+function connect(){
+ clearTimeout(retry);clearTimeout(connectTimer);clearInterval(pingTimer);
+ try{if(ws){ws.onclose=null;ws.close()}}catch{}
+ status('Conectando a Deriv…');$('error').textContent='';$('scanState').textContent='CONECTANDO';
+ try{ws=new WebSocket(URLS[urlIndex%URLS.length])}catch(e){$('error').textContent='No se pudo crear WebSocket: '+e.message;status('Error al iniciar conexión');retry=setTimeout(connect,3000);return}
+ let opened=false;
+ connectTimer=setTimeout(()=>{if(!opened&&ws&&ws.readyState!==WebSocket.OPEN){$('error').textContent='Tiempo de espera agotado conectando con '+URLS[urlIndex%URLS.length]+'. Probando endpoint alternativo…';urlIndex++;try{ws.close()}catch{}}},15000);
+ ws.onopen=()=>{
+   opened=true;clearTimeout(connectTimer);keepAlive();status('Conectado · cargando historial M5/M15',true);
+   // Historial estático de velas, sin suscripción; los ticks alimentan las velas nuevas localmente.
+   send({active_symbols:'brief',req_id:100});
+   send({ticks_history:SYMBOL,end:'latest',count:220,style:'candles',granularity:300,req_id:301});
+   send({ticks_history:SYMBOL,end:'latest',count:220,style:'candles',granularity:900,req_id:315});
+   send({ticks:SYMBOL,subscribe:1,req_id:25});
+   send({ping:1});
+ };
+ ws.onmessage=e=>{
+  let d;try{d=JSON.parse(e.data)}catch{return}
+  if(d.error){$('error').textContent=`Deriv API (${d.error.code||'error'}): ${d.error.message} · req_id ${d.req_id??'—'}`;status('Deriv respondió un error');return}
+  if(d.msg_type==='active_symbols'&&Array.isArray(d.active_symbols)){
+    const found=d.active_symbols.some(x=>x.symbol===SYMBOL);
+    if(!found){$('error').textContent='Deriv conectó, pero no devolvió el símbolo R_25 en active_symbols. Revisa disponibilidad del símbolo.';}
+  }
+  if(d.msg_type==='tick'&&d.tick){
+    lastTick=d.tick;const q=+d.tick.quote,epoch=+d.tick.epoch;
+    $('price').textContent=fmt(q);status('Recibiendo ticks en tiempo real',true);
+    updateCandle(candles5,epoch,q,300);updateCandle(candles15,epoch,q,900);scan();
+  }
+  if(d.msg_type==='candles'&&Array.isArray(d.candles)){
+    const arr=d.candles.map(c=>({open:+c.open,high:+c.high,low:+c.low,close:+c.close,epoch:+c.epoch}));
+    if(+d.echo_req?.granularity===300||d.req_id===301)candles5=arr;
+    if(+d.echo_req?.granularity===900||d.req_id===315)candles15=arr;
+    scan();
+  }
+  if(d.msg_type==='ping'){}
+ };
+ ws.onerror=()=>{status('Error de conexión WebSocket');$('error').textContent='El navegador no logra conectar con Deriv. Revisa que el archivo esté publicado en HTTPS (Netlify), no abierto como content://downloads.'};
+ ws.onclose=()=>{
+   clearTimeout(connectTimer);clearInterval(pingTimer);status('Desconectado · reconectando');
+   if(!opened)urlIndex++;retry=setTimeout(connect,3000);
+ };
+}
+function updateCandle(arr,epoch,price,gran){
+ const bucket=Math.floor(epoch/gran)*gran;
+ let c=arr[arr.length-1];
+ if(!c||c.epoch!==bucket){arr.push({open:price,high:price,low:price,close:price,epoch:bucket});if(arr.length>250)arr.shift();}
+ else{c.high=Math.max(c.high,price);c.low=Math.min(c.low,price);c.close=price;}
+}
+function ema(v,p){if(v.length<p)return null;let x=v.slice(0,p).reduce((a,b)=>a+b,0)/p,k=2/(p+1);for(let i=p;i<v.length;i++)x=v[i]*k+x*(1-k);return x}
+function rsi(v,p=14){
+ if(v.length<=p)return null;
+ let gain=0,loss=0;
+ for(let i=1;i<=p;i++){const d=v[i]-v[i-1];if(d>0)gain+=d;else loss-=d;}
+ let avgGain=gain/p,avgLoss=loss/p;
+ for(let i=p+1;i<v.length;i++){
+  const d=v[i]-v[i-1],g=Math.max(d,0),l=Math.max(-d,0);
+  avgGain=((avgGain*(p-1))+g)/p;
+  avgLoss=((avgLoss*(p-1))+l)/p;
+ }
+ if(avgLoss===0)return 100;
+ return 100-100/(1+avgGain/avgLoss);
+}
+
+function calc(arr){
+ // Indicadores calculados sobre velas cerradas; la última vela activa se excluye.
+ if(arr.length<55)return null;
+ const closed=arr.slice(0,-1);if(closed.length<52)return null;
+ const c=closed.map(x=>x.close),last=closed.at(-1),prev=closed.at(-2);
+ const e9=ema(c,9),e21=ema(c,21),e50=ema(c,50),rr=rsi(c,14);
+ const mom=last.close-closed.at(-4).close;
+ const trs=[];
+ for(let i=1;i<closed.length;i++){
+  const x=closed[i],pc=closed[i-1].close;
+  trs.push(Math.max(x.high-x.low,Math.abs(x.high-pc),Math.abs(x.low-pc)));
+ }
+ if(trs.length<14)return null;
+ let atr=trs.slice(0,14).reduce((s,x)=>s+x,0)/14;
+ for(let i=14;i<trs.length;i++)atr=((atr*13)+trs[i])/14;
+ return {closed,last,prev,e9,e21,e50,rsi:rr,mom,atr};
+}
+
+function checklist(items){$('checks').innerHTML=items.map(([name,ok,detail])=>`<div class="check"><b class="${ok?'pass':'fail'}">${ok?'✓':'○'} ${name}</b><span class="small">${detail}</span></div>`).join('')}
+
+function evaluateSignals(closedCandles){
+ if(!closedCandles||closedCandles.length<4)return;
+ for(const sig of signalHistory){
+  if(sig.result||sig.evalAt==null)continue;
+  const idx=closedCandles.findIndex(c=>c.epoch===sig.epoch);
+  if(idx<0||closedCandles.length-1-idx<3)continue;
+  const future=closedCandles.slice(idx+1,idx+4);
+  let outcome='NEUTRAL',delta=future[2].close-sig.price,firstHit=null;
+  for(const candle of future){
+   const hitTP=sig.dir==='BUY'?candle.high>=sig.tp:candle.low<=sig.tp;
+   const hitSL=sig.dir==='BUY'?candle.low<=sig.sl:candle.high>=sig.sl;
+   if(hitTP&&hitSL){firstHit='AMBIGUO';break;}
+   if(hitTP){firstHit='TP';break;}
+   if(hitSL){firstHit='SL';break;}
+  }
+  if(firstHit==='TP')outcome='FAVORABLE';
+  else if(firstHit==='SL')outcome='DESFAVORABLE';
+  else if(firstHit==='AMBIGUO')outcome='AMBIGUO';
+  else outcome=sig.dir==='BUY'?(delta>0?'FAVORABLE':delta<0?'DESFAVORABLE':'NEUTRAL'):(delta<0?'FAVORABLE':delta>0?'DESFAVORABLE':'NEUTRAL');
+  sig.result=outcome;sig.delta=delta;sig.firstHit=firstHit;
+  if(outcome==='FAVORABLE')evalStats.favorable++;
+  else if(outcome==='DESFAVORABLE')evalStats.unfavorable++;
+  else evalStats.neutral++;
+ }
+ $('evaluated').textContent=evalStats.favorable+evalStats.unfavorable+evalStats.neutral;
+ $('favorable').textContent=evalStats.favorable;
+ $('unfavorable').textContent=evalStats.unfavorable;
+ const denom=evalStats.favorable+evalStats.unfavorable;
+ $('hitRate').textContent=denom?`${(evalStats.favorable/denom*100).toFixed(1)}%`:'—';
+}
+
+function renderTradeLevels(dir,entry,atr){
+ const ids=['entryPrice','takeProfit','stopLoss','riskDistance'];
+ if(!dir||!Number.isFinite(entry)||!Number.isFinite(atr)||atr<=0){ids.forEach(id=>$(id).textContent='—');return null;}
+ const slDist=1.5*atr,tpDist=2*atr;
+ const sl=dir==='BUY'?entry-slDist:entry+slDist;
+ const tp=dir==='BUY'?entry+tpDist:entry-tpDist;
+ $('entryPrice').textContent=fmt(entry);$('takeProfit').textContent=fmt(tp);$('stopLoss').textContent=fmt(sl);
+ $('riskDistance').textContent=`SL ${fmt(slDist)} · TP ${fmt(tpDist)}`;
+ return {entry,tp,sl,slDist,tpDist};
+}
+function scan(){
+ $('lastScan').textContent=new Date().toLocaleTimeString('es-NI');
+ if(!running){$('scanState').textContent='PAUSADO';$('scanState').className='value amber';return}
+ const a=calc(candles5),b=calc(candles15);
+ if(!a||!b){$('scanState').textContent='CARGANDO';$('scanState').className='value amber';$('headline').textContent='Reuniendo historial';$('reason').textContent=`M5: ${candles5.length} velas · M15: ${candles15.length} velas. Se requiere historial suficiente.`;return}
+ evaluateSignals(a.closed);
+ $('m5time').textContent=new Date(a.last.epoch*1000).toLocaleTimeString('es-NI');
+ $('m15time').textContent=new Date(b.last.epoch*1000).toLocaleTimeString('es-NI');
+ const up5=a.e9>a.e21&&a.e21>a.e50&&a.last.close>a.e9&&a.mom>0&&a.last.close>a.last.open;
+ const dn5=a.e9<a.e21&&a.e21<a.e50&&a.last.close<a.e9&&a.mom<0&&a.last.close<a.last.open;
+ const up15=b.e9>b.e21&&b.e21>b.e50&&b.last.close>b.e9&&b.mom>0;
+ const dn15=b.e9<b.e21&&b.e21<b.e50&&b.last.close<b.e9&&b.mom<0;
+ const rsiBuy=a.rsi>=52&&a.rsi<=68&&b.rsi>=50&&b.rsi<=70;
+ const rsiSell=a.rsi>=32&&a.rsi<=48&&b.rsi>=30&&b.rsi<=50;
+ const atrOK=a.atr>0&&a.atr<Math.abs(a.last.close)*0.02;
+ const buy=up5&&up15&&rsiBuy&&atrOK, sell=dn5&&dn15&&rsiSell&&atrOK;
+ $('trend5').textContent=up5?'ALCISTA':dn5?'BAJISTA':'MIXTA';
+ $('trend15').textContent=up15?'ALCISTA':dn15?'BAJISTA':'MIXTA';
+ $('rsi5').textContent=a.rsi.toFixed(1);$('rsi15').textContent=b.rsi.toFixed(1);
+ const trendUp=a.e9>a.e21&&a.e21>a.e50&&b.e9>b.e21&&b.e21>b.e50;
+ const trendDown=a.e9<a.e21&&a.e21<a.e50&&b.e9<b.e21&&b.e21<b.e50;
+ const prealert=trendUp?'PREALERTA ALCISTA · M5/M15 alineados; esperando retroceso y confirmación':
+                trendDown?'PREALERTA BAJISTA · M5/M15 alineados; esperando retroceso y confirmación':'';
+ $('prealert').textContent=prealert;
+ $('prealert').className='small '+(trendUp?'green':trendDown?'red':'');
+
+ checklist([
+ ['EMA 9/21/50 M5',up5||dn5,up5?'Orden alcista y cierre/momentum alineados':dn5?'Orden bajista y cierre/momentum alineados':'No hay alineación completa'],
+ ['Tendencia M15',up15||dn15,up15?'Confirmación alcista':dn15?'Confirmación bajista':'M15 no confirma'],
+ ['RSI M5 + M15',rsiBuy||rsiSell,rsiBuy?'Rangos alcistas válidos':rsiSell?'Rangos bajistas válidos':`RSI ${a.rsi.toFixed(1)} / ${b.rsi.toFixed(1)} fuera de rango`],
+ ['Filtro ATR',atrOK,atrOK?'Rango técnico aceptable':'Volatilidad/rango fuera del filtro'],
+ ['Nueva vela M5',a.last.epoch!==lastProcessedM5,'Se evita repetir alerta en la misma vela']
+ ]);
+ const dir=buy?'BUY':sell?'SELL':null;
+ const tradeLevels=renderTradeLevels(dir,a.last.close,a.atr);
+ $('scanState').textContent=dir?'OPORTUNIDAD':'ESCANEANDO';$('scanState').className='value '+(buy?'green':sell?'red':'amber');
+ $('badge').textContent=dir?'CONFIRMADA':'SIN CONFIRMACIÓN';
+ $('headline').textContent=dir?`SEÑAL ${dir} · V25`:'Buscando coincidencia completa';
+ $('headline').className='signal '+(buy?'green':sell?'red':'amber');
+ $('reason').textContent=dir?`M5 y M15 alineados. Confirmación registrada al cierre de vela M5 ${new Date(a.last.epoch*1000).toLocaleTimeString('es-NI')}.`:'No se cumplen todos los filtros al mismo tiempo. El scanner seguirá observando sin emitir prealertas.';
+ if(a.last.epoch!==lastProcessedM5){
+   lastProcessedM5=a.last.epoch;
+   if(dir){
+    const key=dir+'_'+a.last.epoch;
+    if(key!==lastSignalKey){lastSignalKey=key;addSignal(dir,a.last.close,a.last.epoch,tradeLevels);if(soundOn)beep();}
+   }
+ }
+}
+function addSignal(dir,price,epoch,levels){
+ signalHistory.unshift({dir,price,epoch,at:new Date().toLocaleString('es-NI'),entry:levels?.entry??price,tp:levels?.tp??null,sl:levels?.sl??null,result:null,evalAt:epoch});signalHistory=signalHistory.slice(0,20);
+ renderHistory();saveState();
+}
+function beep(){try{const C=window.AudioContext||window.webkitAudioContext;if(!C)return;const c=new C(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.value=.08;o.start();o.stop(c.currentTime+.18)}catch{}}
+$('toggle').onclick=()=>{running=!running;$('toggle').textContent=running?'Pausar scanner':'Reanudar scanner';scan()};
+$('reconnect').onclick=connect;
+$('sound').onclick=()=>{soundOn=!soundOn;$('sound').textContent=soundOn?'Sonido activado':'Activar sonido';if(soundOn)beep()};
+$('clear').onclick=()=>{signalHistory=[];evalStats={favorable:0,unfavorable:0,neutral:0};$('count').textContent='0 señales';$('history').innerHTML='<p class="small">Historial limpiado.</p>';['evaluated','favorable','unfavorable'].forEach(id=>$(id).textContent='0');$('hitRate').textContent='—';saveState()};
+connect();
+})();
+</script></body></html>
